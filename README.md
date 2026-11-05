@@ -52,10 +52,6 @@ Comprehend, Bedrock, an active GuardDuty scanner, Cognito, WAF, an external audi
 
 DataSentinel is a student-led IFHX cloud-governance project. It demonstrates how an organisation can discover sensitive data, preserve the uploaded file format while creating a protected copy, control access to originals, and retain evidence that explains what the system did.
 
-- **Muhammad Irfan bin Rizal** — Project lead · Cloud architecture
-- **Muhammad Faris Irfan bin Dzulkifli** — Security engineering
-- **Muhammad Ihsan bin Kamarulzaman** — Platform engineering
-
 The sign-in experience introduces this operating model before an operator enters the console. It also labels production integrations honestly: OCR is active, while the external malware scanner, federated identity, WAF association and an external audit trust anchor remain production integrations rather than simulated active controls.
 
 ## Architecture
