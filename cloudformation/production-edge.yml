@@ -1,0 +1,180 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Optional production edge for the DataSentinel HTTP API. CloudFront is placed
+  in front of the API and a global AWS WAF web ACL is attached to the
+  distribution. Deploy this stack in us-east-1. It is deliberately separate
+  from the AWS Academy Learner Lab deployment.
+
+Parameters:
+  ApiOriginDomainName:
+    Type: String
+    Description: >-
+      API Gateway origin hostname without a scheme, for example
+      abc123.execute-api.us-east-1.amazonaws.com
+    AllowedPattern: '^[A-Za-z0-9.-]+\.execute-api\.[a-z0-9-]+\.amazonaws\.com$'
+  RateLimitPerFiveMinutes:
+    Type: Number
+    Default: 2000
+    MinValue: 100
+    Description: Maximum requests allowed from one source IP in five minutes.
+  OriginSharedSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: >-
+      Secret forwarded by CloudFront. The API authorizer must require the same
+      value so direct API Gateway origin access cannot bypass this WAF edge.
+
+Rules:
+  MustDeployInUsEast1:
+    Assertions:
+      - Assert: !Equals [!Ref "AWS::Region", us-east-1]
+        AssertDescription: CloudFront-scoped AWS WAF resources must be created in us-east-1.
+
+Resources:
+  DataSentinelWebAcl:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub "datasentinel-cloudfront-${AWS::AccountId}"
+      Description: Managed protections and per-IP rate control for DataSentinel.
+      Scope: CLOUDFRONT
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: DataSentinelCloudFrontWebAcl
+        SampledRequestsEnabled: true
+      Rules:
+        - Name: AWSManagedCommonRules
+          Priority: 10
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: DataSentinelCommonRules
+            SampledRequestsEnabled: true
+        - Name: AWSManagedKnownBadInputs
+          Priority: 20
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: DataSentinelKnownBadInputs
+            SampledRequestsEnabled: true
+        - Name: PerIpRateLimit
+          Priority: 30
+          Action:
+            Block: {}
+          Statement:
+            RateBasedStatement:
+              AggregateKeyType: IP
+              Limit: !Ref RateLimitPerFiveMinutes
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: DataSentinelRateLimit
+            SampledRequestsEnabled: true
+      Tags:
+        - Key: Project
+          Value: DataSentinel
+        - Key: Purpose
+          Value: ProductionEdgeControl
+
+  NoCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "datasentinel-no-cache-${AWS::AccountId}"
+        Comment: Prevent protected API responses from being cached at the edge.
+        DefaultTTL: 0
+        MaxTTL: 0
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: false
+          EnableAcceptEncodingGzip: false
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  ApiOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: !Sub "datasentinel-api-origin-${AWS::AccountId}"
+        Comment: Forward API request context while preserving the API Gateway host.
+        CookiesConfig:
+          CookieBehavior: all
+        HeadersConfig:
+          HeaderBehavior: allExcept
+          Headers:
+            - Host
+        QueryStringsConfig:
+          QueryStringBehavior: all
+
+  EdgeDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: DataSentinel production HTTP API edge
+        Enabled: true
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_100
+        WebACLId: !GetAtt DataSentinelWebAcl.Arn
+        Origins:
+          - Id: DataSentinelHttpApi
+            DomainName: !Ref ApiOriginDomainName
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+            OriginCustomHeaders:
+              - HeaderName: X-DataSentinel-Edge-Secret
+                HeaderValue: !Ref OriginSharedSecret
+        DefaultCacheBehavior:
+          TargetOriginId: DataSentinelHttpApi
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - DELETE
+            - GET
+            - HEAD
+            - OPTIONS
+            - PATCH
+            - POST
+            - PUT
+          CachedMethods:
+            - GET
+            - HEAD
+          CachePolicyId: !Ref NoCachePolicy
+          OriginRequestPolicyId: !Ref ApiOriginRequestPolicy
+          Compress: true
+      Tags:
+        - Key: Project
+          Value: DataSentinel
+        - Key: Purpose
+          Value: ProductionEdgeControl
+
+Outputs:
+  CloudFrontDomainName:
+    Description: Point the production DNS name to this CloudFront domain.
+    Value: !GetAtt EdgeDistribution.DomainName
+  DistributionId:
+    Description: CloudFront distribution protected by the DataSentinel web ACL.
+    Value: !Ref EdgeDistribution
+  WebAclArn:
+    Description: ARN of the CloudFront-scoped DataSentinel web ACL.
+    Value: !GetAtt DataSentinelWebAcl.Arn
+  ProtectionStatus:
+    Description: WAF is attached to the CloudFront distribution in this stack.
+    Value: ACTIVE_ON_CLOUDFRONT

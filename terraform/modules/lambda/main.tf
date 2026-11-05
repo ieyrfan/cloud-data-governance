@@ -1,4 +1,6 @@
 # Create IAM Role for Lambda
+data "aws_caller_identity" "current" {}
+
 resource "aws_iam_role" "lambda_exec" {
   name = "${var.function_name}_role"
   assume_role_policy = jsonencode({
@@ -29,12 +31,12 @@ resource "aws_iam_role_policy" "lambda_inline_policy" {
       {
         Effect   = "Allow"
         Action   = ["s3:GetObject"]
-        Resource = ["*"] # Narrow this down in production
+        Resource = ["${var.source_bucket_arn}/*"]
       },
       {
         Effect   = "Allow"
         Action   = ["dynamodb:PutItem"]
-        Resource = ["*"]
+        Resource = [var.dynamodb_table_arn]
       },
       {
         Effect   = "Allow"
@@ -78,8 +80,6 @@ resource "aws_lambda_permission" "allow_s3" {
   function_name = aws_lambda_function.classifier.function_name
   principal     = "s3.amazonaws.com"
 
-  # tfsec fix: Prevent confused deputy attack by restricting to the specific account
-  # In a real environment, you should also restrict by source_arn of the specific buckets
   source_account = data.aws_caller_identity.current.account_id
-  source_arn     = "arn:aws:s3:::*"
+  source_arn     = var.source_bucket_arn
 }

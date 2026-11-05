@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Protect a document and download the redacted result directly.">
+  <title>DataSentinel · Protect a file</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/customer.css?v=15">
+  <link rel="stylesheet" href="/static/customer-policy.css?v=4">
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/"><span class="brand-mark">DS</span><span>DataSentinel</span></a><nav aria-label="Page navigation"><a href="#protect">Protect a file</a><a href="#how-it-works">How it works</a><a href="#api">API</a></nav></header>
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="kicker">Document protection, delivered directly</p>
+        <h1>Upload. Protect.<br><em>Download.</em></h1>
+        <p class="lede">DataSentinel detects supported personal information and returns a redacted file in the same format. The application does not create a document catalogue or store the submitted file or result.</p>
+        <div class="hero-actions"><a class="button primary" href="#protect">Protect a file →</a><a class="text-link" href="#api">Use the API →</a></div>
+        <div class="trust-row"><span><b>01</b> Direct download</span><span><b>02</b> No document inventory</span><span><b>03</b> Uncertain results fail closed</span></div>
+      </div>
+      <div class="hero-card" aria-label="Illustrative passport redaction"><div class="card-label"><span class="status-dot"></span> Synthetic illustration</div><div class="sample-document"><div class="sample-heading"><strong>DEMO PASSPORT</strong><small>Not a real identity document</small></div><div class="sample-body"><div class="sample-portrait" aria-label="Illustrative portrait placeholder"></div><div class="sample-fields"><span>Passport number</span><i></i><span>Date of birth</span><i></i><span>Address</span><i></i></div></div><small>Protected preview · fields covered</small></div><div class="card-foot"><span>Original stays with its sender</span><strong>Protected output</strong></div></div>
+    </section>
+    <section id="protect" class="protect-section">
+      <div class="section-heading"><p class="kicker">One task, one result</p><h2>Protect your document</h2><p>Choose a file and submit it. When processing finishes, the protected file downloads automatically. Keep the original yourself; DataSentinel cannot recover it later.</p><p class="privacy-note">Free public processing, no account needed. The shared limit is 200 requests per UTC day. Files: up to 3 MB. Scanned PDFs: up to three pages. Poor OCR or uncertain detection stops delivery.</p></div>
+      <div class="upload-card">
+        <form id="customer-upload">
+          <label class="drop-zone" for="customer-file"><span class="upload-icon">↑</span><span><strong id="customer-file-label">Choose a file</strong><small>PDF, JPG, PNG, TXT, CSV, JSON and supported text · maximum 3 MB</small></span><input id="customer-file" type="file" accept=".pdf,.jpg,.jpeg,.png,.txt,.csv,.json,.md,.log,.html,.htm,.xml,.yaml,.yml,.ini,.cfg" required></label>
+          <div id="image-editor" hidden><h3>Cover additional image areas</h3><p>Drag over a portrait, signature or other area that automated text detection may miss.</p><canvas id="redaction-canvas" aria-label="Image with additional manual covers"></canvas><button id="reset-masks" type="button" class="button">Reset covers</button><p id="mask-status" role="status"></p></div>
+          <details class="policy-details"><summary>Advanced: choose information to protect</summary><fieldset id="redaction-policy" class="policy-picker"><legend>Redaction categories</legend><p class="policy-intro">All supported categories are protected by default. Review the choices below; checked means protected. Identity numbers, payment cards and secrets cannot be left visible.</p><div id="policy-summary" class="policy-summary" role="status"></div><p id="policy-loading" class="policy-loading" role="status">Loading category choices… If they do not appear, refresh this page before processing.</p><div id="policy-options" class="policy-options"></div><div class="policy-actions"><button id="redact-all" type="button" class="button">Protect all</button><button id="reset-policy" type="button" class="button">Reset choices</button></div></fieldset></details>
+          <p id="customer-status" class="status" role="status" aria-live="polite"></p>
+          <button class="button primary" type="submit">Protect and download →</button>
+          <div id="download-result" class="download-result" hidden>
+            <strong>Protected file ready</strong>
+            <p>The download starts automatically. If your browser blocked it, use this link.</p>
+            <a id="download-again" class="button" href="#">Download again</a>
+            <div class="result-summary" aria-label="Processing summary">
+              <h3>Processing summary</h3>
+              <dl>
+                <div><dt>Document type</dt><dd id="summary-type">—</dd></div>
+                <div><dt>Suggested classification</dt><dd id="summary-classification">—</dd></div>
+                <div><dt>Detected categories</dt><dd id="summary-categories">—</dd></div>
+                <div><dt>Protected categories</dt><dd id="summary-redacted">—</dd></div>
+                <div><dt>Kept visible by policy</dt><dd id="summary-kept">None</dd></div>
+                <div><dt>Areas covered</dt><dd id="summary-hits">—</dd></div>
+                <div><dt>OCR used</dt><dd id="summary-ocr">—</dd></div>
+                <div><dt>Output check</dt><dd id="summary-check">—</dd></div>
+                <div><dt>Processing time</dt><dd id="summary-time">—</dd></div>
+                <div><dt>Request reference</dt><dd id="summary-reference">—</dd></div>
+              </dl>
+              <p id="summary-policy" class="result-policy" hidden></p>
+              <p class="result-caveat">This temporary receipt contains no detected values or document text. The output check covers detected values, not every possible sensitive detail. Classification is a suggestion, not permission to share. No document record is kept by this application.</p>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+    <section id="how-it-works" class="workflow-section"><div class="section-heading"><p class="kicker">What happens</p><h2>A short, direct workflow</h2></div><div class="steps"><article><span>01</span><h3>Submit</h3><p>The file travels over HTTPS to the processing API.</p></article><article><span>02</span><h3>Detect</h3><p>Text extraction and, for images or scans, Textract OCR identify supported fields.</p></article><article><span>03</span><h3>Protect</h3><p>Text or image pixels are covered. Uncertain extraction stops the result.</p></article><article><span>04</span><h3>Download and review</h3><p>The protected bytes return directly to your browser. A content-free processing summary appears on this page; no document catalogue is created.</p></article></div><p class="boundary-note">This describes application storage. AWS processing and operational logs follow AWS service policies; “zero storage” cannot mean no transient processing or network transfer.</p></section>
+    <section id="api" class="api-section" aria-labelledby="api-title">
+      <div class="api-overview">
+        <p class="kicker">For developers</p>
+        <h2 id="api-title">The same protection, in your application.</h2>
+        <p>Send one document to the public API and receive the protected file in the response. No account or API key is required for this free demonstration service.</p>
+        <div class="api-endpoint"><span>POST</span><code>https://datasentinel.ifhx.my/api/v1/protect</code><button id="copy-api-url" type="button" aria-label="Copy API endpoint">Copy</button></div>
+        <p id="copy-api-status" class="api-copy-status" role="status" aria-live="polite"></p>
+        <p class="api-limits">Raw file body · <code>X-Filename</code> header · maximum 3 MB · 200 shared requests per UTC day</p>
+        <a class="api-guide-link" href="/api/v1/docs">Read the full API guide <span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="api-example"><div class="api-example-head"><span>Example request</span><span>cURL</span></div><pre><code>curl --fail --request POST \
+  --header "X-Filename: sample.pdf" \
+  --header "Content-Type: application/pdf" \
+  --data-binary @sample.pdf \
+  --output protected-sample.pdf \
+  https://datasentinel.ifhx.my/api/v1/protect</code></pre><p>HTTP 200 returns protected file bytes. If extraction is uncertain, the API returns an error and no file.</p></div>
+    </section>
+  </main>
+  <footer><span>DataSentinel · direct document protection</span><span>Keep the original with the sender</span></footer>
+  <script src="/static/customer-policy.js?v=4" defer></script><script src="/static/customer.js?v=16" defer></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+fastapi==0.141.1
+starlette==1.7.0
+mangum==0.22.0
+PyMuPDF==1.26.7
+Pillow>=13.0.0,<14
+urllib3>=2.8.0,<3

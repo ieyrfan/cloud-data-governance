@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="DataSentinel free direct redaction API guide.">
+  <title>DataSentinel · API guide</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/customer.css?v=15">
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/"><span class="brand-mark">DS</span><span>DataSentinel</span></a><nav aria-label="Page navigation"><a href="/">Protect a file</a></nav></header>
+  <main class="api-guide">
+    <p class="kicker">Developer guide</p>
+    <h1>Protect a file with one request.</h1>
+    <p class="lede">The public API accepts one raw file and returns protected bytes in the same format. No account or API key is required for the current free demonstration service.</p>
+    <section>
+      <h2>Request</h2>
+      <p><code>POST https://datasentinel.ifhx.my/api/v1/protect</code></p>
+      <p>Send the file as the raw request body. Set <code>X-Filename</code> to the file name, and set an appropriate <code>Content-Type</code>. The response has <code>Content-Disposition: attachment</code>. Save the response bytes as a file; do not treat them as JSON or text.</p>
+      <pre><code>curl --fail --request POST \
+  --header "X-Filename: sample.pdf" \
+  --header "Content-Type: application/pdf" \
+  --data-binary @sample.pdf \
+  --output protected-sample.pdf \
+  https://datasentinel.ifhx.my/api/v1/protect</code></pre>
+      <p>Use a synthetic document for first integration tests. A successful response is HTTP 200. Uncertain extraction or incomplete redaction returns HTTP 422 without a protected file.</p>
+      <p>A successful response also carries a temporary, content-free receipt in headers: <code>X-Document-Type</code>, <code>X-Suggested-Classification</code>, <code>X-Detected-Categories</code>, <code>X-Redacted-Categories</code>, <code>X-Kept-Categories</code>, <code>X-Redaction-Hits</code>, <code>X-OCR-Used</code>, <code>X-Output-Verified</code>, <code>X-Processing-Ms</code> and <code>X-Correlation-ID</code>. These contain category names, counts or a random request reference, never detected personal values or OCR text. Application-level error responses also carry a correlation ID; gateway-level failures may not.</p>
+      <p><code>X-Output-Verified: true</code> means checks for <em>detected</em> values completed. It does not prove that every possible sensitive value was found. A KEEP choice deliberately leaves that category visible; the output is not PII-free. Classification is a suggestion for the sender to review, not a sharing permission.</p>
+    </section>
+    <section>
+      <h2>Limits and privacy</h2>
+      <ul>
+        <li>Maximum input and output: 3 MiB. Scanned PDFs: up to three pages.</li>
+        <li>Shared free allowance: 200 requests per UTC day. HTTP 429 means the daily allowance is exhausted. This is a shared demonstration service, not a service-level guarantee.</li>
+        <li>Requests beyond the rate limit may receive HTTP 429. Retry later; avoid automated bursts.</li>
+        <li>HTTP 503/504 or a timed-out connection means no reliable result was received. Retry later with a smaller, clearer file; do not distribute an unverified output.</li>
+        <li>The direct processing path creates no S3 document or DynamoDB document record. Only an aggregate daily request count is kept to enforce the free allowance. AWS handles request bytes transiently under its service policies.</li>
+        <li>DataSentinel cannot retrieve the original or unredact the protected file. Keep the original with its sender.</li>
+        <li>This browser site is same-origin. Cross-origin browser integrations need a customer-side backend or a self-hosted deployment; the public endpoint does not grant wildcard CORS.</li>
+      </ul>
+      <p>DataSentinel cannot guarantee detection of every possible sensitive value. Review protected results before sharing them.</p>
+    </section>
+  </main>
+  <footer><span>DataSentinel · direct document protection</span><a href="/">Return to file protection</a></footer>
+</body>
+</html>

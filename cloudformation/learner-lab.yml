@@ -1,0 +1,833 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Budget-conscious Cloud Data Governance deployment for AWS Academy Learner Lab.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: cloud-data-governance
+    AllowedPattern: "[a-z0-9-]+"
+    MaxLength: 24
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, test]
+  EphemeralProcessingMode:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Delete original uploads after classification and protected-copy creation.
+  LabRoleArn:
+    Type: String
+    Description: ARN of the pre-created AWS Academy LabRole.
+  LambdaCodeBucket:
+    Type: String
+  LambdaCodeKey:
+    Type: String
+  ReleaseId:
+    Type: String
+    AllowedPattern: "^[a-f0-9]{64}$"
+    Description: SHA-256 identity of the release-relevant source tree.
+  DashboardToken:
+    Type: String
+    NoEcho: true
+    MinLength: 16
+    Description: Temporary dashboard token supplied through the deployment environment.
+  AdminDashboardToken:
+    Type: String
+    NoEcho: true
+    MinLength: 16
+    Description: Temporary administrator dashboard token for the Learner Lab console; original-file links are disabled.
+  AdminUsername:
+    Type: String
+    Default: admin
+    MinLength: 1
+    MaxLength: 80
+    Description: Learner Lab console administrator username.
+  AdminPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 12
+    MaxLength: 128
+    Description: Learner Lab console administrator password.
+  IntegrationApiKeyHash:
+    Type: String
+    NoEcho: true
+    AllowedPattern: "^[a-f0-9]{64}$"
+    Description: SHA-256 hash of the temporary external-application API key.
+  IntegrationTenantId:
+    Type: String
+    Default: ifhx-demo
+    AllowedPattern: "^[A-Za-z0-9_-]{3,64}$"
+  IntegrationClientId:
+    Type: String
+    Default: booth-client
+    AllowedPattern: "^[A-Za-z0-9_-]{3,64}$"
+  DashboardCustomOrigin:
+    Type: String
+    Default: "https://datasentinel.ifhx.my"
+    AllowedPattern: "^$|^https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?$"
+    Description: Optional HTTPS dashboard origin allowed to upload directly to the raw S3 bucket.
+
+Conditions:
+  HasDashboardCustomOrigin: !Not [!Equals [!Ref DashboardCustomOrigin, ""]]
+
+Resources:
+  PublicUsageTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-public-usage-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: usage_day
+          AttributeType: S
+      KeySchema:
+        - AttributeName: usage_day
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expires_epoch
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ResultsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-results-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: resource_id
+          AttributeType: S
+        - AttributeName: version_id
+          AttributeType: S
+        - AttributeName: inventory_scope
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: resource_id
+          KeyType: HASH
+        - AttributeName: version_id
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: InventoryByTimestamp
+          KeySchema:
+            - AttributeName: inventory_scope
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  AuditTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-audit-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: log_id
+          AttributeType: S
+        - AttributeName: ledger_scope
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: log_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: AuditByTimestamp
+          KeySchema:
+            - AttributeName: ledger_scope
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  AccessRequestsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-access-requests-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: request_id
+          AttributeType: S
+        - AttributeName: record_type
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: request_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: AccessByTypeAndTime
+          KeySchema:
+            - AttributeName: record_type
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: expires_epoch
+        Enabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  WebhookSigningKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Encrypts DataSentinel outbound webhook signing secrets.
+      EnableKeyRotation: true
+      PendingWindowInDays: 7
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnableAccountAdministration
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+          - Sid: AllowLearnerLabRuntime
+            Effect: Allow
+            Principal:
+              AWS: !Ref LabRoleArn
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+            Resource: "*"
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  WebhookSigningKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/${ProjectName}-webhook-${Environment}"
+      TargetKeyId: !Ref WebhookSigningKey
+
+  RawDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-raw-${Environment}-${AWS::AccountId}-${AWS::Region}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: [POST, HEAD]
+            AllowedOrigins:
+              - !Sub "https://${GovernanceApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}"
+              - !If [HasDashboardCustomOrigin, !Ref DashboardCustomOrigin, !Ref "AWS::NoValue"]
+            ExposedHeaders: [ETag]
+            MaxAge: 300
+      LifecycleConfiguration:
+        Rules:
+          - Id: BudgetProtection
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: DataOwner
+          Value: LearnerLab
+        - Key: Sensitivity
+          Value: Mixed
+        - Key: CostCenter
+          Value: Academic
+
+  RawDataBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref RawDataBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt RawDataBucket.Arn
+              - !Sub "${RawDataBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  CleanDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-clean-${Environment}-${AWS::AccountId}-${AWS::Region}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: BudgetProtection
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: DataOwner
+          Value: LearnerLab
+        - Key: Sensitivity
+          Value: Redacted
+        - Key: CostCenter
+          Value: Academic
+
+  CleanDataBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CleanDataBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt CleanDataBucket.Arn
+              - !Sub "${CleanDataBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  ClassifierFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-classifier-${Environment}"
+      Description: Classifies and redacts objects uploaded to the raw data bucket.
+      Runtime: python3.12
+      Architectures: [x86_64]
+      Handler: src.handlers.s3_classifier.lambda_handler
+      Role: !Ref LabRoleArn
+      Timeout: 300
+      MemorySize: 512
+      # Serial execution avoids forks in the proof-of-concept hash chain.
+      ReservedConcurrentExecutions: 1
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref LambdaCodeKey
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref ResultsTable
+          AUDIT_TABLE: !Ref AuditTable
+          RAW_BUCKET: !Ref RawDataBucket
+          CLEAN_BUCKET: !Ref CleanDataBucket
+          ALERT_TOPIC_ARN: !Ref AlertTopic
+          ENVIRONMENT: !Ref Environment
+          ENABLE_COMPREHEND: "false"
+          ENABLE_TEXTRACT: "true"
+          ENABLE_RETENTION: "true"
+          # GuardDuty Malware Protection is not available in every Learner Lab.
+          # Production deployments set this true after GuardDuty writes the
+          # GuardDutyMalwareScanStatus object tag.
+          ENFORCE_MALWARE_GATE: "false"
+          EPHEMERAL_PROCESSING_MODE: !Ref EphemeralProcessingMode
+          CLASSIFIER_VERSION: "2026.10-r7"
+          RELEASE_ID: !Ref ReleaseId
+          DEFAULT_DATA_OWNER: LearnerLab
+          DEFAULT_COST_CENTER: Academic
+          WEBHOOK_QUEUE_URL: !Ref WebhookQueue
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ClassifierLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-classifier-${Environment}"
+      RetentionInDays: 1
+
+  ClassificationDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${ProjectName}-classification-dlq-${Environment}"
+      MessageRetentionPeriod: 345600
+      SqsManagedSseEnabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ClassificationDeadLetterQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref ClassificationDeadLetterQueue]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowEventBridgeDeadLetters
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt ClassificationDeadLetterQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/${ProjectName}-classify-upload-${Environment}"
+
+  WebhookDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${ProjectName}-webhook-dlq-${Environment}"
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  WebhookQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${ProjectName}-webhook-${Environment}"
+      VisibilityTimeout: 60
+      MessageRetentionPeriod: 345600
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt WebhookDeadLetterQueue.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  WebhookDispatcherFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-webhook-dispatcher-${Environment}"
+      Description: Delivers signed, privacy-safe DataSentinel integration events.
+      Runtime: python3.12
+      Architectures: [x86_64]
+      Handler: src.integrations.webhook_dispatcher.lambda_handler
+      Role: !Ref LabRoleArn
+      Timeout: 20
+      MemorySize: 256
+      ReservedConcurrentExecutions: 1
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref LambdaCodeKey
+      Environment:
+        Variables:
+          ACCESS_REQUESTS_TABLE: !Ref AccessRequestsTable
+          WEBHOOK_KMS_KEY_ID: !Ref WebhookSigningKey
+          RELEASE_ID: !Ref ReleaseId
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  WebhookDispatcherLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-webhook-dispatcher-${Environment}"
+      RetentionInDays: 1
+
+  WebhookEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn: !GetAtt WebhookQueue.Arn
+      FunctionName: !Ref WebhookDispatcherFunction
+
+  ClassificationRule:
+    Type: AWS::Events::Rule
+    DependsOn: ClassificationDeadLetterQueuePolicy
+    Properties:
+      Name: !Sub "${ProjectName}-classify-upload-${Environment}"
+      Description: Sends raw S3 object-created events to the classifier.
+      State: ENABLED
+      EventPattern:
+        source: [aws.s3]
+        detail-type: [Object Created]
+        detail:
+          bucket:
+            name: [!Ref RawDataBucket]
+      Targets:
+        - Arn: !GetAtt ClassifierFunction.Arn
+          Id: ClassifierLambda
+          DeadLetterConfig:
+            Arn: !GetAtt ClassificationDeadLetterQueue.Arn
+          RetryPolicy:
+            MaximumEventAgeInSeconds: 3600
+            MaximumRetryAttempts: 2
+
+  AllowEventBridgeInvokeClassifier:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ClassifierFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ClassificationRule.Arn
+
+  ApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-api-${Environment}"
+      Description: Authenticated dashboard, evidence API, and controlled-upload broker.
+      Runtime: python3.12
+      Architectures: [x86_64]
+      Handler: src.api.main.handler
+      Role: !Ref LabRoleArn
+      Timeout: 30
+      MemorySize: 512
+      ReservedConcurrentExecutions: 2
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref LambdaCodeKey
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref ResultsTable
+          AUDIT_TABLE: !Ref AuditTable
+          ACCESS_REQUESTS_TABLE: !Ref AccessRequestsTable
+          RAW_BUCKET: !Ref RawDataBucket
+          CLEAN_BUCKET: !Ref CleanDataBucket
+          CLASSIFIER_FUNCTION_NAME: !Ref ClassifierFunction
+          CLASSIFICATION_RULE_NAME: !Ref ClassificationRule
+          CLASSIFICATION_DLQ_URL: !Ref ClassificationDeadLetterQueue
+          DASHBOARD_TOKEN: !Ref DashboardToken
+          ADMIN_DASHBOARD_TOKEN: !Ref AdminDashboardToken
+          ADMIN_USERNAME: !Ref AdminUsername
+          ADMIN_PASSWORD: !Ref AdminPassword
+          INTEGRATION_API_KEY_HASH: !Ref IntegrationApiKeyHash
+          INTEGRATION_TENANT_ID: !Ref IntegrationTenantId
+          INTEGRATION_CLIENT_ID: !Ref IntegrationClientId
+          INTEGRATION_API_SCOPES: "documents:create,documents:read,protected-copy:read"
+          WEBHOOK_KMS_KEY_ID: !Ref WebhookSigningKey
+          ALLOW_LEGACY_DASHBOARD_TOKENS: "false"
+          ENABLE_LEGACY_ORIGINAL_ACCESS: "false"
+          ENVIRONMENT: !Ref Environment
+          RELEASE_ID: !Ref ReleaseId
+          EPHEMERAL_PROCESSING_MODE: !Ref EphemeralProcessingMode
+          STRICT_TRANSIENT_MODE: "true"
+          PUBLIC_FREE_API_ENABLED: "true"
+          PUBLIC_USAGE_TABLE: !Ref PublicUsageTable
+          PUBLIC_FREE_DAILY_LIMIT: "200"
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-api-${Environment}"
+      RetentionInDays: 1
+
+  ApiErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-api-errors-${Environment}"
+      AlarmDescription: Alerts when the dashboard API Lambda records an error.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ApiFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  ApiThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-api-throttles-${Environment}"
+      AlarmDescription: Alerts when the public API Lambda reaches its reserved concurrency limit.
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ApiFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  ApiSlowProcessingAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-api-slow-${Environment}"
+      AlarmDescription: Alerts when an API Lambda invocation approaches its 30-second timeout.
+      Namespace: AWS/Lambda
+      MetricName: Duration
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ApiFunction
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 25000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  ClassifierErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-classifier-errors-${Environment}"
+      AlarmDescription: Alerts when the classification Lambda records an error.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ClassifierFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  ClassificationDeadLetterAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-classification-dlq-${Environment}"
+      AlarmDescription: Alerts when classification failures reach the dead-letter queue.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt ClassificationDeadLetterQueue.QueueName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  WebhookDispatcherErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-webhook-errors-${Environment}"
+      AlarmDescription: Alerts when outbound webhook delivery records an error.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref WebhookDispatcherFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  WebhookDeadLetterAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-webhook-dlq-${Environment}"
+      AlarmDescription: Alerts when webhook events exhaust delivery retries.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt WebhookDeadLetterQueue.QueueName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  GovernanceApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub "${ProjectName}-api-${Environment}"
+      ProtocolType: HTTP
+
+  ApiIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref GovernanceApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ApiFunction.Arn
+      IntegrationMethod: POST
+      PayloadFormatVersion: "2.0"
+
+  RootRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref GovernanceApi
+      RouteKey: GET /
+      AuthorizationType: NONE
+      Target: !Sub "integrations/${ApiIntegration}"
+
+  ProxyRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref GovernanceApi
+      RouteKey: ANY /{proxy+}
+      AuthorizationType: NONE
+      Target: !Sub "integrations/${ApiIntegration}"
+
+  PublicProtectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref GovernanceApi
+      RouteKey: POST /api/v1/protect
+      AuthorizationType: NONE
+      Target: !Sub "integrations/${ApiIntegration}"
+
+  ApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    DependsOn: PublicProtectRoute
+    Properties:
+      ApiId: !Ref GovernanceApi
+      StageName: "$default"
+      AutoDeploy: true
+      DefaultRouteSettings:
+        DetailedMetricsEnabled: true
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+      RouteSettings:
+        "POST /api/v1/protect":
+          DetailedMetricsEnabled: true
+          ThrottlingBurstLimit: 2
+          ThrottlingRateLimit: 1
+
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${ProjectName}-restricted-data-${Environment}"
+      DisplayName: Data governance alerts
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  AllowApiGatewayInvokeApi:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ApiFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${GovernanceApi}/*/*"
+
+Outputs:
+  PublicUsageTableName:
+    Value: !Ref PublicUsageTable
+  ReleaseId:
+    Value: !Ref ReleaseId
+  RawDataBucketName:
+    Value: !Ref RawDataBucket
+  CleanDataBucketName:
+    Value: !Ref CleanDataBucket
+  ResultsTableName:
+    Value: !Ref ResultsTable
+  AuditTableName:
+    Value: !Ref AuditTable
+  AccessRequestsTableName:
+    Value: !Ref AccessRequestsTable
+  ClassifierFunctionName:
+    Value: !Ref ClassifierFunction
+  ApiFunctionName:
+    Value: !Ref ApiFunction
+  ApiUrl:
+    Value: !Sub "https://${GovernanceApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}"
+  DashboardUrl:
+    Value: !Sub "https://${GovernanceApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/"
+  AlertTopicArn:
+    Value: !Ref AlertTopic
+  ClassificationDeadLetterQueueUrl:
+    Value: !Ref ClassificationDeadLetterQueue
+  WebhookQueueUrl:
+    Value: !Ref WebhookQueue
+  WebhookDeadLetterQueueUrl:
+    Value: !Ref WebhookDeadLetterQueue
+  WebhookDispatcherFunctionName:
+    Value: !Ref WebhookDispatcherFunction

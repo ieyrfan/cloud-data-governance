@@ -11,4 +11,6 @@ variable "environment" {
 variable "lambda_function_arn" {
   description = "ARN of the classification Lambda function"
   type        = string
+  default     = null
+  nullable    = true
 }

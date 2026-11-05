@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07111f">
+  <meta name="description" content="DataSentinel operational console for AWS data classification, protected access, and audit evidence.">
+  <title>DataSentinel Governance Console</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/static/styles.css?v=34">
+  <link rel="stylesheet" href="/static/workspace.css?v=20261031">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to dashboard</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">DS</span>
+        <span class="brand-copy"><strong>DataSentinel</strong><small>Data protection operations</small></span>
+        <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse navigation" aria-expanded="true" title="Collapse navigation">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m14 7-5 5 5 5"/></svg>
+        </button>
+      </div>
+      <nav class="nav-list" aria-label="Console sections">
+        <div class="nav-section-label">Workspace</div>
+        <button class="nav-item active" data-view="overview" aria-current="page" title="Overview">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg><span>Overview</span>
+        </button>
+        <button class="nav-item" data-view="inventory" title="Data inventory">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/><path d="M7 3v4M17 10v4M9 17v4"/></svg><span>Data inventory</span>
+        </button>
+        <button class="nav-item" data-view="audit" title="Audit evidence">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h4"/></svg><span>Audit evidence</span>
+        </button>
+        <button class="nav-item" data-view="posture" title="Security posture">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3 20 7v5c0 4.8-3.3 8-8 9-4.7-1-8-4.2-8-9V7z"/><path d="m9 12 2 2 4-5"/></svg><span>Security posture</span>
+        </button>
+        <button class="nav-item" data-view="requests" title="Access requests">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 11V8a4 4 0 0 1 8 0v3M6 11h12v9H6z"/><path d="M12 15v2"/></svg><span>Access requests</span>
+        </button>
+        <div class="nav-divider" aria-hidden="true"></div>
+        <div class="nav-section-label admin-tools-label">Admin tools</div>
+        <div class="nav-admin-tools">
+          <button class="nav-item" data-view="policies" title="Protection rules">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h5M8 16h7"/></svg><span>Protection rules</span>
+          </button>
+          <button class="nav-item" data-view="operations" title="Reviews and retention">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="5"/><path d="m8.5 8.5-2-2M15.5 15.5l2 2M15.5 8.5l2-2M8.5 15.5l-2 2"/></svg><span>Reviews &amp; retention</span>
+          </button>
+          <button class="nav-item" data-view="integrations" title="Developer access">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 9 5 12l3 3M16 9l3 3-3 3M14 5l-4 14"/></svg><span>Developer access</span>
+          </button>
+        </div>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="system-state"><span class="status-dot"></span><span><strong>Classification service</strong><small id="classifier-state">Checking service</small></span></div>
+        <button id="lock-button" class="text-button">Lock console</button>
+      </div>
+    </aside>
+
+    <main id="main-content" class="main-content">
+      <header class="topbar">
+        <div class="page-heading">
+          <p class="eyebrow">DataSentinel workspace</p>
+          <h1 id="view-title" tabindex="-1">Governance overview</h1>
+          <p id="view-description" class="page-description">Classification, document access and control evidence.</p>
+          <p id="privacy-mode" class="privacy-mode" hidden></p>
+        </div>
+        <div class="topbar-actions">
+          <span id="environment-badge" class="environment-badge"><span class="environment-dot"></span>LOCAL · US-EAST-1</span>
+          <span id="access-role-badge" class="access-role-badge" hidden>Reviewer access</span>
+          <button id="demo-guide-button" class="button button-secondary" type="button">Demo guide</button>
+          <button id="refresh-button" class="button button-secondary"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg><span id="refresh-label">Refresh</span></button>
+          <button id="upload-button" class="button button-primary"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Upload file</button>
+        </div>
+      </header>
+
+      <section id="overview-view" class="view active" aria-labelledby="view-title">
+        <div id="overview-loading" class="loading-panel" role="status" aria-live="polite">
+          <span class="loading-copy">Loading governance evidence…</span>
+          <span class="skeleton-row" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        </div>
+        <div id="overview-error" class="error-panel" role="alert" hidden>
+          <div><strong>Governance evidence is temporarily unavailable</strong><span id="overview-error-message">The service did not return a complete response.</span></div>
+          <button id="retry-button" class="button button-secondary" type="button">Try again</button>
+        </div>
+        <div id="overview-content" hidden>
+          <section id="role-workspace" class="role-workspace" aria-label="Role workspace">
+            <div>
+              <p id="role-workspace-eyebrow" class="eyebrow">Role workspace</p>
+              <h2 id="role-workspace-title">Your governance workspace</h2>
+              <p id="role-workspace-description">Loading the actions and evidence available to this account.</p>
+            </div>
+            <div class="role-workspace-actions">
+              <span id="role-workspace-scope" class="role-scope">Least-privilege access</span>
+              <button id="role-primary-action" class="button button-primary" type="button" data-role-primary>Open workspace</button>
+            </div>
+          </section>
+
+          <section class="operations-banner" aria-label="Current governance status">
+            <div>
+              <p id="evidence-mode" class="mode-label">Current state</p>
+              <h2 id="attention-title">Checking the review queue</h2>
+              <p id="attention-detail">Loading the latest classification evidence.</p>
+            </div>
+            <div class="operations-actions">
+              <span id="data-freshness" class="data-freshness">Last evidence unavailable</span>
+              <button class="button button-secondary" type="button" data-review-queue>Open review queue <span aria-hidden="true">→</span></button>
+            </div>
+          </section>
+
+          <section class="summary-strip" aria-label="Governance metrics">
+            <article class="metric-card">
+              <div class="metric-label">Classified</div>
+              <strong id="metric-total">0</strong>
+              <small>Resources with evidence</small>
+            </article>
+            <article class="metric-card metric-attention">
+              <div class="metric-label">Restricted</div>
+              <strong id="metric-restricted">0</strong>
+              <small>Highest sensitivity</small>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label">Review queue</div>
+              <strong id="metric-review">0</strong>
+              <small>Restricted or confidential</small>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label">Evidence coverage</div>
+              <strong><span id="metric-readiness">0</span><span class="metric-unit">/100</span></strong>
+              <small id="readiness-basis">Recorded actions, not certification</small>
+            </article>
+          </section>
+
+          <section class="panel document-catalogue" aria-labelledby="document-catalogue-title">
+            <div class="panel-head"><div><p class="eyebrow">Document catalogue</p><h2 id="document-catalogue-title">Files organised by business purpose</h2></div><button class="text-button" type="button" data-go-view="inventory">Browse inventory <span aria-hidden="true">→</span></button></div>
+            <div id="document-type-summary" class="document-type-summary"></div>
+          </section>
+
+          <div class="operations-layout">
+            <section class="panel activity-panel">
+              <div class="panel-head"><div><p class="eyebrow">Latest completed run</p><h2 id="activity-resource">Waiting for classification evidence</h2></div><time id="activity-time" class="activity-time">—</time></div>
+              <ol id="activity-trace" class="activity-trace" aria-label="Latest classification trace"></ol>
+            </section>
+            <section class="panel distribution-panel">
+              <div class="panel-head"><div><p class="eyebrow">Classification</p><h2>Sensitivity distribution</h2></div><span id="distribution-total" class="count-badge">0 files</span></div>
+              <div id="sensitivity-chart" class="bar-chart" aria-label="Sensitivity distribution"></div>
+            </section>
+          </div>
+
+          <section class="panel system-map" aria-labelledby="system-map-title">
+            <div class="panel-head">
+              <div><p class="eyebrow">Processing path</p><h2 id="system-map-title">From intake to evidence</h2></div>
+              <span class="count-badge">Event-driven AWS</span>
+            </div>
+            <ol class="system-flow" id="system-flow">
+              <li data-system-check="raw-storage">
+                <span class="flow-number">01</span>
+                <div class="flow-heading"><strong>Private intake</strong><span class="service-state">Checking</span></div>
+                <p>The browser or CLI requests a short-lived upload and writes the file to the private raw-data bucket.</p>
+                <code>S3 raw zone</code>
+              </li>
+              <li data-system-check="event-pipeline">
+                <span class="flow-number">02</span>
+                <div class="flow-heading"><strong>Automatic trigger</strong><span class="service-state">Checking</span></div>
+                <p>An S3 Object Created event travels through EventBridge and invokes the classifier without a manual scan.</p>
+                <code>EventBridge</code>
+              </li>
+              <li data-system-check="classification">
+                <span class="flow-number">03</span>
+                <div class="flow-heading"><strong>Classification</strong><span class="service-state">Checking</span></div>
+                <p>The Lambda function strictly extracts supported text, validates Malaysian PII patterns, and calculates sensitivity, confidence, and a review-priority baseline.</p>
+                <code>Lambda</code>
+              </li>
+              <li data-system-check="protected-storage">
+                <span class="flow-number">04</span>
+                <div class="flow-heading"><strong>Protection</strong><span class="service-state">Checking</span></div>
+                <p>Non-public data receives a redacted clean copy and governance tags. Restricted results also raise an alert.</p>
+                <code>S3 clean · SNS</code>
+              </li>
+              <li data-system-check="evidence-store">
+                <span class="flow-number">05</span>
+                <div class="flow-heading"><strong>Proof and review</strong><span class="service-state">Checking</span></div>
+                <p>Versioned results and hash-linked audit events are stored, then surfaced here for investigation and review.</p>
+                <code>DynamoDB</code>
+              </li>
+            </ol>
+            <div class="scope-note">
+              <strong>Demonstrated scope</strong>
+              <p>This Learner Lab release proves text detection, fail-closed multi-page OCR, irreversible pixel redaction for scanned PDFs, tagging, alerts, versioned evidence, signed webhooks and audit chaining. Incomplete or low-confidence extraction requires human review. Malware quarantine, Cognito, WAF and an external trust anchor are not claimed here.</p>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Evidence history</p><h2>Recent classification decisions</h2></div><button class="text-button" data-go-view="inventory">View all resources <span aria-hidden="true">→</span></button></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Resource</th><th>Document type</th><th>Sensitivity</th><th>Confidence</th><th>Priority</th><th>Classified</th><th aria-label="Actions"></th></tr></thead>
+                <tbody id="recent-files-body"></tbody>
+              </table>
+            </div>
+            <div id="recent-empty" class="empty-state" hidden><strong>No classification evidence yet</strong><span>Upload a controlled sample to start the pipeline.</span></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="inventory-view" class="view" aria-labelledby="view-title" hidden>
+        <section class="panel">
+          <div class="inventory-toolbar">
+            <label class="field-group search-group"><span>Search resources</span><span class="search-field"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg><input id="resource-search" type="search" placeholder="Name or S3 path" autocomplete="off"></span></label>
+            <label class="field-group"><span>Document type</span><select id="document-type-filter"><option value="">All document types</option><option value="IDENTITY">Identity document</option><option value="RESUME">Resume / CV</option><option value="PAYSLIP">Payslip / Payroll</option><option value="ACADEMIC_RESULT">Academic result</option><option value="FORM">Form / Application</option><option value="INVOICE">Invoice / Financial</option><option value="CERTIFICATE">Certificate</option><option value="CONTRACT">Contract / Agreement</option><option value="REPORT">Report</option><option value="OTHER">Other document</option></select></label>
+            <label class="field-group"><span>Queue</span><select id="sensitivity-filter"><option value="">All resources</option><option value="REVIEW">Needs review</option><option>RESTRICTED</option><option>CONFIDENTIAL</option><option>INTERNAL</option><option>PUBLIC</option></select></label>
+            <span id="inventory-count" class="count-badge">0 resources</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Resource</th><th>Document type</th><th>Sensitivity</th><th>Signals</th><th>Confidence</th><th>Priority</th><th>Timestamp</th><th aria-label="Actions"></th></tr></thead>
+              <tbody id="inventory-body"></tbody>
+            </table>
+          </div>
+          <div id="inventory-empty" class="empty-state" hidden><strong>No resources match this view</strong><span>Change the filter or upload a supported document.</span></div>
+        </section>
+      </section>
+
+      <section id="audit-view" class="view" aria-labelledby="view-title" hidden>
+        <div class="section-intro"><div><p class="eyebrow">Recorded actions</p><h2>Tamper-evident audit trail</h2><p>The API recomputes every retrieved SHA-256 event hash and chain link. This detects modification and interior deletion; an external trusted checkpoint is still required to detect tail deletion or wholesale replacement.</p></div><div class="audit-status"><span id="audit-integrity" class="integrity-badge">Checking ledger</span><span id="audit-count" class="count-badge">0 events</span></div></div>
+        <section class="panel"><ol id="audit-list" class="audit-list"></ol><div id="audit-empty" class="empty-state" hidden><strong>No audit events yet</strong><span>Events appear after a successful classification.</span></div></section>
+        <section class="panel access-evidence-panel">
+          <div class="panel-head"><div><p class="eyebrow">File retrieval evidence</p><h2>Protected links issued</h2><p>Every protected link receives a correlation ID before it is returned to the user.</p></div><span id="access-event-count" class="count-badge">0 events</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Resource</th><th>Copy</th><th>Actor</th><th>Access basis</th><th>Issued</th><th>Correlation</th></tr></thead><tbody id="access-events-body"></tbody></table></div>
+          <div id="access-events-empty" class="empty-state" hidden><strong>No protected links issued yet</strong><span>Open a protected copy to create retrieval evidence.</span></div>
+        </section>
+      </section>
+
+      <section id="posture-view" class="view" aria-labelledby="view-title" hidden>
+        <div class="section-intro"><div><p class="eyebrow">Storage zones</p><h2>Control comparison</h2><p>Compare the raw ingestion zone with the protected output zone. Each result comes from the current posture response.</p></div><div id="posture-score" class="posture-score">—</div></div>
+        <div id="posture-buckets" class="posture-grid"></div>
+      </section>
+
+      <section id="requests-view" class="view" aria-labelledby="view-title" hidden>
+        <div class="section-intro">
+          <div><p class="eyebrow">Sender-controlled originals</p><h2>Original-file access is disabled</h2><p>DataSentinel does not expose unredacted files from the server. Ask the sender if original information is required.</p></div>
+          <div class="request-summary"><strong id="request-pending">0 pending</strong><span id="request-scope">Loading access scope</span></div>
+        </div>
+        <section class="panel control-coverage">
+          <div class="panel-head"><div><p class="eyebrow">Deployment truth</p><h2>Control coverage</h2></div><span class="count-badge">Learner Lab scope</span></div>
+          <div class="coverage-grid"><div><strong id="implemented-count">0 active controls</strong><ul id="implemented-controls" class="control-list"></ul></div><div><strong id="integration-count">0 production integrations</strong><ul id="integration-controls" class="control-list pending-controls"></ul></div></div>
+          <p id="capability-statement" class="scope-statement"></p>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><div><p class="eyebrow">Decision queue</p><h2>Access history</h2></div><span id="request-count" class="count-badge">0 requests</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Resource</th><th>Requester</th><th>Reason</th><th>Status</th><th>Expiry</th><th aria-label="Actions"></th></tr></thead><tbody id="requests-body"></tbody></table></div>
+          <div id="requests-empty" class="empty-state" hidden><strong>No legacy access requests</strong><span>Server-side original retrieval is disabled in the hardened workflow.</span></div>
+        </section>
+      </section>
+
+      <section id="operations-view" class="view" aria-labelledby="view-title" hidden>
+        <section class="platform-hero operations-hero">
+            <div><p class="eyebrow">Reviews & retention</p><h2>Follow up on documents that need attention</h2><p>Record an incident, set a retention period or save a signed audit checkpoint. Use the document reference from your document details.</p></div>
+          <button id="checkpoint-create" class="button button-primary" type="button">Sign audit checkpoint</button>
+        </section>
+        <section class="policy-metrics" aria-label="Control-operation metrics">
+          <article><span>Reviews recorded</span><strong id="operations-review-count">0</strong></article>
+          <article><span>Open incidents</span><strong id="operations-incident-count">0</strong></article>
+          <article><span>Legal holds</span><strong id="operations-hold-count">0</strong></article>
+          <article><span>Signed checkpoints</span><strong id="operations-checkpoint-count">0</strong></article>
+        </section>
+        <div class="operations-control-grid">
+          <form id="incident-form" class="panel compact-control-form">
+            <div class="panel-head"><div><p class="eyebrow">Incident workflow</p><h2>Open a security incident</h2></div></div>
+            <label class="field-group"><span>Title</span><input id="incident-title" required minlength="5" maxlength="160" placeholder="Unexpected original-file access"></label>
+            <label class="field-group"><span>Severity</span><select id="incident-severity"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
+            <label class="field-group"><span>Resource (optional)</span><input id="incident-resource" maxlength="1024" placeholder="s3://…"></label>
+            <label class="field-group"><span>Summary</span><textarea id="incident-summary" required minlength="12" maxlength="1000" rows="3"></textarea></label>
+            <p id="incident-error" class="form-error" role="alert"></p>
+            <button class="button button-primary" type="submit">Create incident</button>
+          </form>
+          <form id="retention-form" class="panel compact-control-form">
+            <div class="panel-head"><div><p class="eyebrow">Preservation</p><h2>Set retention or legal hold</h2></div></div>
+            <label class="field-group"><span>Resource</span><input id="retention-resource" required minlength="6" maxlength="1024" placeholder="s3://…"></label>
+            <label class="field-group"><span>Retention days</span><input id="retention-days" type="number" min="1" max="3650" value="365" required></label>
+            <label class="policy-switch"><input id="retention-legal-hold" type="checkbox"><span>Block deletion under legal hold</span></label>
+            <p id="retention-error" class="form-error" role="alert"></p>
+            <button class="button button-primary" type="submit">Save control</button>
+          </form>
+        </div>
+        <section class="panel">
+          <div class="panel-head"><div><p class="eyebrow">Response register</p><h2>Security incidents</h2></div><span id="incident-count" class="count-badge">0 incidents</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Incident</th><th>Severity</th><th>Status</th><th>Resource</th><th>Updated</th><th aria-label="Actions"></th></tr></thead><tbody id="incidents-body"></tbody></table></div>
+          <div id="incidents-empty" class="empty-state" hidden><strong>No security incidents</strong><span>Controlled response records appear here.</span></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><div><p class="eyebrow">Evidence preservation</p><h2>Retention and checkpoint evidence</h2></div></div>
+          <div id="control-evidence-list" class="control-evidence-list"></div>
+        </section>
+      </section>
+
+      <section id="integrations-view" class="view" aria-labelledby="view-title" hidden>
+        <section class="platform-hero">
+          <div>
+            <p class="eyebrow">API-first product boundary</p>
+            <h2>Connect your application to DataSentinel</h2>
+            <p>External systems submit documents to DataSentinel and consume classification, policy and protected-copy results without rebuilding the security pipeline.</p>
+          </div>
+          <a class="button button-primary" href="/api/docs" target="_blank" rel="noreferrer">Open API reference</a>
+        </section>
+        <section id="integration-management" class="panel integration-management" hidden>
+          <div class="panel-head">
+            <div><p class="eyebrow">Application identities</p><h2>Integration control plane</h2><p id="integration-permission-note">Create, rotate and revoke scoped machine identities without exposing stored secrets.</p></div>
+            <span id="api-client-count" class="count-badge">0 clients</span>
+          </div>
+          <form id="api-client-form" class="api-client-form">
+            <label class="field-group"><span>Tenant ID</span><input id="api-tenant-id" required minlength="3" maxlength="63" pattern="[a-z0-9][a-z0-9-]{2,62}" placeholder="faculty-demo"></label>
+            <label class="field-group"><span>Client ID</span><input id="api-client-id" required minlength="3" maxlength="63" pattern="[a-z0-9][a-z0-9-]{2,62}" placeholder="student-portal"></label>
+            <label class="field-group"><span>Display label</span><input id="api-client-label" required minlength="3" maxlength="100" placeholder="Student portal"></label>
+            <fieldset class="scope-picker"><legend>Allowed capabilities</legend><label><input type="checkbox" name="api-scope" value="documents:create" checked> Submit documents</label><label><input type="checkbox" name="api-scope" value="documents:read" checked> Read decisions</label><label><input type="checkbox" name="api-scope" value="protected-copy:read"> Retrieve protected copies</label></fieldset>
+            <button id="api-client-create" class="button button-primary" type="submit">Create API client</button>
+          </form>
+          <div id="api-secret-reveal" class="secret-reveal" hidden aria-live="polite"><div><strong>Copy this credential now</strong><span>For safety it will not be shown again.</span></div><code id="api-secret-value"></code><button id="api-secret-copy" class="button button-secondary" type="button">Copy credential</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Application</th><th>Scopes</th><th>Status</th><th>Expires</th><th>Webhook</th><th aria-label="Actions"></th></tr></thead><tbody id="api-clients-body"></tbody></table></div>
+          <div id="api-clients-empty" class="empty-state" hidden><strong>No managed API clients</strong><span>Create the first scoped identity for an external application.</span></div>
+        </section>
+        <section id="webhook-delivery-panel" class="panel webhook-delivery-panel" hidden>
+          <div class="panel-head"><div><p class="eyebrow">Outbound events</p><h2>Webhook delivery evidence</h2><p>Callbacks contain decision metadata only. Personal values and storage locations are never included.</p></div><span id="webhook-delivery-count" class="count-badge">0 deliveries</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Event</th><th>Application</th><th>Destination</th><th>Status</th><th>Delivered</th></tr></thead><tbody id="webhook-deliveries-body"></tbody></table></div>
+          <div id="webhook-deliveries-empty" class="empty-state" hidden><strong>No webhook delivery evidence</strong><span>Delivery records appear after an integrated application submits a document.</span></div>
+        </section>
+        <div class="integration-grid">
+          <article class="panel integration-card"><span class="integration-step">01</span><h3>Authenticate the application</h3><p>A temporary machine credential is verified by SHA-256 hash and resolved to a tenant, client and explicit scopes.</p><code>GET /api/v1/whoami</code></article>
+          <article class="panel integration-card"><span class="integration-step">02</span><h3>Create an idempotent job</h3><p>The same idempotency key always resolves to the same document and job, preventing accidental duplicate processing.</p><code>POST /api/v1/documents</code></article>
+          <article class="panel integration-card"><span class="integration-step">03</span><h3>Upload directly and privately</h3><p>A five-minute signed S3 policy binds the content type, tenant, client, document identity and five-megabyte limit.</p><code>S3 private intake</code></article>
+          <article class="panel integration-card"><span class="integration-step">04</span><h3>Consume a safe decision</h3><p>Clients receive sensitivity, document type, risk and signal types—never the detected personal values.</p><code>GET /api/v1/jobs/{job_id}</code></article>
+          <article class="panel integration-card"><span class="integration-step">05</span><h3>Retrieve the protected copy</h3><p>The external API exposes only the protected result through an audited link that expires after 120 seconds.</p><code>GET /api/v1/documents/{id}/protected-copy</code></article>
+          <article class="panel integration-card integration-boundary"><span class="integration-step">Policy boundary</span><h3>Originals stay customer-controlled</h3><p>DataSentinel returns protected copies and content-free evidence. Unredacted originals remain with the sender.</p><code>Protected by design</code></article>
+        </div>
+        <section class="panel api-contract">
+          <div class="panel-head"><div><p class="eyebrow">Developer contract</p><h2>Designed for integration, not screen scraping</h2></div><span class="count-badge">API v1</span></div>
+          <div class="contract-row"><strong>Tenant boundary</strong><span>Every object and record is namespaced by tenant and client identity.</span></div>
+          <div class="contract-row"><strong>Asynchronous processing</strong><span>Stable document and job resources separate upload acceptance from completed classification.</span></div>
+          <div class="contract-row"><strong>Evidence by default</strong><span>Protected-link issuance creates a correlation record before the URL is returned.</span></div>
+          <div class="contract-row"><strong>Fail-closed results</strong><span>Unsupported or unproven content remains review-required instead of silently becoming public.</span></div>
+        </section>
+      </section>
+      <section id="policies-view" class="view" aria-labelledby="view-title" hidden>
+        <section class="platform-hero policy-hero">
+          <div><p class="eyebrow">Protection rules</p><h2>Check how a document would be protected</h2><p>Choose a protection profile and the types of information found in a document. See the expected classification and review requirements without entering personal information.</p></div>
+          <span class="count-badge">No PII submitted</span>
+        </section>
+        <section class="policy-metrics" aria-label="Operational classification analytics">
+          <article><span>Documents</span><strong id="analytics-documents">0</strong></article>
+          <article><span>Classified</span><strong id="analytics-classification">0%</strong></article>
+          <article><span>Protected copies</span><strong id="analytics-protection">0%</strong></article>
+          <article><span>Review queue</span><strong id="analytics-review">0</strong></article>
+        </section>
+        <div class="policy-layout">
+          <form id="policy-form" class="panel policy-form">
+            <div class="panel-head"><div><p class="eyebrow">Policy simulator</p><h2>Value-free decision preview</h2></div></div>
+            <label class="field-group"><span>Protection profile</span><select id="policy-profile" required></select></label>
+            <fieldset><legend>Detected signal types</legend><div class="policy-signals">
+              <label><input type="checkbox" name="policy-signal" value="MALAYSIAN_NRIC"> Malaysian NRIC</label>
+              <label><input type="checkbox" name="policy-signal" value="ADDRESS"> Postal address</label>
+              <label><input type="checkbox" name="policy-signal" value="EMAIL_ADDRESS"> Email address</label>
+              <label><input type="checkbox" name="policy-signal" value="MALAYSIAN_PHONE"> Malaysian phone</label>
+              <label><input type="checkbox" name="policy-signal" value="FINANCIAL_ACCOUNT"> Financial account</label>
+              <label><input type="checkbox" name="policy-signal" value="NAME"> Person name</label>
+            </div></fieldset>
+            <label class="policy-switch"><input id="policy-extraction-complete" type="checkbox" checked><span>Text extraction completed successfully</span></label>
+            <p id="policy-permission-note" class="form-hint"></p>
+            <button id="policy-simulate" class="button button-primary" type="submit">Simulate decision</button>
+          </form>
+          <section class="panel policy-output" aria-live="polite"><p class="eyebrow">Expected outcome</p><h2>Decision evidence</h2><div id="policy-result" class="policy-result"><strong>Choose a profile and signal types</strong><span>The simulation never needs the detected personal values.</span></div></section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="auth-dialog" class="dialog auth-dialog" aria-labelledby="auth-title">
+    <div class="auth-layout">
+      <section class="auth-story" aria-labelledby="auth-story-title">
+        <div class="auth-company"><span class="dialog-mark">IF</span><span><strong>IFHX</strong><small>Student-led cloud security team</small></span></div>
+        <p class="auth-kicker">DataSentinel on AWS</p>
+        <h1 id="auth-story-title">A clearer way to protect your documents.</h1>
+        <p class="auth-lead">DataSentinel classifies and protects private documents while preserving their original file format.</p>
+        <ol class="auth-journey" aria-label="How DataSentinel works">
+          <li><span>01</span><div><strong>Ingest privately</strong><small>Short-lived upload into a private raw-data zone.</small></div></li>
+          <li><span>02</span><div><strong>Detect and classify</strong><small>Malaysian PII patterns, confidence and review priority.</small></div></li>
+          <li><span>03</span><div><strong>Protect the same format</strong><small>Redacted PDF stays PDF; protected access is the default.</small></div></li>
+          <li><span>04</span><div><strong>Prove every decision</strong><small>Governance actions, access decisions and audit evidence.</small></div></li>
+        </ol>
+        <div class="auth-scope"><strong>Current AWS demonstration</strong><span>Text, images and multi-page scanned PDFs · Event-driven classification · Protected-copy delivery</span><small>Amazon Textract OCR is active for images and scanned PDFs, including asynchronous multi-page extraction. Incomplete or low-confidence extraction fails closed for review. Original-file server access is disabled. Malware quarantine, WAF, MFA and externally anchored evidence remain production integrations.</small></div>
+        <div class="auth-team">
+          <div><p class="auth-kicker">Built by</p><strong>People behind DataSentinel</strong></div>
+          <ul>
+            <li><span>MR</span><div><strong>Muhammad Irfan bin Rizal</strong><small>Project lead · Cloud architecture</small></div></li>
+            <li><span>MF</span><div><strong>Muhammad Faris Irfan bin Dzulkifli</strong><small>Security engineering</small></div></li>
+            <li><span>MI</span><div><strong>Muhammad Ihsan bin Kamarulzaman</strong><small>Platform engineering</small></div></li>
+          </ul>
+        </div>
+      </section>
+      <form id="auth-form" method="dialog" class="auth-form-panel">
+        <div class="auth-brand"><span class="dialog-mark">DS</span><span><strong>DataSentinel</strong><small>Protected governance console</small></span></div>
+        <p class="eyebrow">Authorised access</p>
+        <h2 id="auth-title">Sign in to the console</h2>
+        <p>Review classifications, open protected documents and govern time-limited original-file access.</p>
+        <label>Username<input id="username-input" type="text" required autocomplete="username" placeholder="Enter username" spellcheck="false"></label>
+        <label>Password<span class="password-field"><input id="password-input" type="password" required autocomplete="current-password" placeholder="Enter your password"><button id="toggle-password" type="button" aria-label="Show password">Show</button></span></label>
+        <p id="auth-hint" class="form-hint"></p>
+        <p id="auth-error" class="form-error" role="alert"></p>
+        <button id="auth-submit" class="button button-primary full-width" type="submit">Open console</button>
+        <p class="security-note"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 10V8a5 5 0 0 1 10 0v2M6 10h12v10H6z"/></svg>Your 30-minute session stays only in this browser tab.</p>
+        <a class="auth-company-link" href="https://ifhx.my" target="_blank" rel="noopener noreferrer">About the IFHX student team <span aria-hidden="true">↗</span></a>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="upload-dialog" class="dialog upload-dialog" aria-labelledby="upload-title">
+    <form id="upload-form" method="dialog">
+      <button class="dialog-close" type="button" data-close-dialog="upload-dialog" aria-label="Close upload dialog">×</button>
+      <p class="eyebrow">Controlled ingestion</p>
+      <h2 id="upload-title">Upload a document</h2>
+      <p>Supported: TXT, CSV, JSON, PDF, JPG, JPEG, PNG, MD, LOG, HTML, XML, YAML, INI, and CFG. Images and scanned PDFs use OCR. Use synthetic data for demonstrations.</p>
+      <label class="drop-zone" for="file-input"><span class="upload-symbol">⇧</span><strong id="file-label">Choose a file</strong><small>Maximum 5 MB for this academic workflow</small><input id="file-input" type="file" accept=".txt,.csv,.json,.pdf,.jpg,.jpeg,.png,.md,.log,.html,.htm,.xml,.yaml,.yml,.ini,.cfg" required></label>
+      <div id="upload-progress" class="progress-track" hidden><span></span></div>
+      <p id="upload-stage" class="upload-stage" role="status" aria-live="polite"></p>
+      <p id="upload-error" class="form-error" role="alert"></p>
+      <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog="upload-dialog">Cancel</button><button id="upload-submit" class="button button-primary" type="submit">Upload and classify</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="detail-dialog" class="dialog detail-dialog" aria-labelledby="detail-title">
+    <div class="detail-shell">
+      <button class="dialog-close" type="button" data-close-dialog="detail-dialog" aria-label="Close resource details">×</button>
+      <p class="eyebrow">Resource evidence</p>
+      <h2 id="detail-title">Classification details</h2>
+      <div id="detail-content"></div>
+    </div>
+  </dialog>
+
+  <dialog id="request-dialog" class="dialog request-dialog" aria-labelledby="request-title">
+    <form id="request-form" method="dialog">
+      <button class="dialog-close" type="button" data-close-dialog="request-dialog" aria-label="Close access request">×</button>
+      <p class="eyebrow">Just-in-time access</p><h2 id="request-title">Request the original file</h2>
+      <p id="request-resource" class="resource-path"></p>
+      <label>Business justification<textarea id="request-justification" minlength="12" maxlength="500" required placeholder="Explain why the protected copy is insufficient for this review."></textarea></label>
+      <p class="form-hint">If approved, access lasts 15 minutes. The protected copy remains available without approval.</p>
+      <p id="request-error" class="form-error" role="alert"></p>
+      <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog="request-dialog">Cancel</button><button id="request-submit" class="button button-primary" type="submit">Submit request</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="demo-guide-dialog" class="dialog demo-guide-dialog" aria-labelledby="demo-guide-title">
+    <div class="demo-guide-shell">
+      <button class="dialog-close" type="button" data-close-dialog="demo-guide-dialog" aria-label="Close demo guide">×</button>
+      <p class="eyebrow">AWS Cloud and AI Day · booth flow</p>
+      <h2 id="demo-guide-title">Tell the DataSentinel story in five moves</h2>
+      <p class="demo-guide-lead">Use synthetic data only. Each step points to evidence already available in this deployment.</p>
+      <ol class="demo-guide-steps">
+        <li><span>01</span><div><strong>Upload privately</strong><p>Upload a supported synthetic document and wait for the final classification result, not only the S3 transfer.</p><button class="text-button" type="button" data-demo-action="upload">Open upload</button></div></li>
+        <li><span>02</span><div><strong>Explain the decision</strong><p>Open the newest resource to show the detected signal types, policy ID and evidence-backed rationale.</p><button class="text-button" type="button" data-demo-action="inventory">Open inventory</button></div></li>
+        <li><span>03</span><div><strong>Review protected evidence</strong><p>Protected copies are the default. Unredacted originals remain customer-controlled and are never served by DataSentinel.</p><button class="text-button" type="button" data-demo-action="requests">View policy boundary</button></div></li>
+        <li><span>04</span><div><strong>Prove who did what</strong><p>Show the recomputed audit chain and retrieval correlation evidence.</p><button class="text-button" type="button" data-demo-action="audit">Open audit evidence</button></div></li>
+        <li><span>05</span><div><strong>Take the proof away</strong><p>Download the selected resource's evidence pack from its detail view. It excludes document content.</p><button class="text-button" type="button" data-demo-action="inventory">Choose a resource</button></div></li>
+      </ol>
+      <div class="scope-note"><strong>Say this honestly</strong><p>Multi-page scanned-PDF OCR is active. Images and scans use Textract, confidence gating and pixel-destructive output rebuilding. Names remain visible for reviewer identification. Incomplete or low-confidence extraction stops for human review; malware quarantine, Cognito, WAF and an external trust anchor remain production integrations.</p></div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <dialog id="webhook-dialog" class="dialog compact-dialog" aria-labelledby="webhook-title">
+    <form id="webhook-form" method="dialog">
+      <button class="dialog-close" type="button" data-close-dialog="webhook-dialog" aria-label="Close webhook configuration">×</button>
+      <p class="eyebrow">Signed callbacks</p><h2 id="webhook-title">Configure webhook</h2>
+      <p id="webhook-client-label" class="resource-path"></p>
+      <input id="webhook-tenant-id" type="hidden"><input id="webhook-client-id" type="hidden">
+      <label class="field-group"><span>HTTPS destination</span><input id="webhook-url" type="url" required maxlength="500" placeholder="https://app.example.com/datasentinel/events"></label>
+      <p class="form-hint">Private addresses, embedded credentials, redirects and non-standard ports are rejected. Saving rotates the signing secret.</p>
+      <p id="webhook-error" class="form-error" role="alert"></p>
+      <div class="dialog-actions"><button class="button button-secondary" type="button" data-close-dialog="webhook-dialog">Cancel</button><button id="webhook-save" class="button button-primary" type="submit">Save and rotate secret</button></div>
+    </form>
+  </dialog>
+
+  <script src="/static/app.js?v=20261101&hardened=1" defer></script>
+</body>
+</html>

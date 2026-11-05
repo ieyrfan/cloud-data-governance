@@ -1,0 +1,11 @@
+flowchart LR
+  C[1 Customer\nSelect file + policy\nOriginal stays with customer] --> API[2 API Gateway\nHTTPS request]
+  API --> L[3 Lambda in memory\nExtract → detect → redact → validate]
+  L -. Scans/images only .-> T[4 Textract OCR\nText + geometry]
+  T -. Return OCR result .-> L
+  L -->|Checks pass| R[6 Direct response\nProtected bytes + content-free receipt]
+  R --> C
+  L -->|Checks fail / unsupported| E[Stop: error, no file released]
+  L -. Aggregate UTC-day quota .-> D[DynamoDB quota counter]
+  L -. Operational signals .-> CW[CloudWatch logs / metrics / alarms]
+  CW -. Confirmed subscription .-> SNS[SNS notification]

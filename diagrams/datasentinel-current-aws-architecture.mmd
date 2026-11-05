@@ -1,0 +1,17 @@
+flowchart LR
+  C[Customer browser/device\nKeeps original] -->|HTTPS file + policy| API[Amazon API Gateway\nHTTP API]
+  API -->|Invoke| L[AWS Lambda\nFastAPI direct route\nIn-memory processing]
+  L -->|Only for scanned images/PDFs| T[Amazon Textract\nOCR]
+  T -->|Text + geometry| L
+  L -->|Protected bytes + content-free receipt| API
+  API -->|Direct download| C
+  L -. UTC day + aggregate count + expiry .-> D[Amazon DynamoDB\nQuota only]
+  L -. Logs / metrics .-> CW[Amazon CloudWatch]
+  CW -. Alarm actions .-> SNS[Amazon SNS\nSubscription required]
+  CF[AWS CloudFormation] -. Provisions .-> API
+  IAM[AWS IAM LabRole] -. Permissions .-> L
+  subgraph LEGACY[Legacy workflow, inactive for public route]
+    S3R[S3 raw] --> EB[EventBridge] --> CL[Classifier Lambda] --> S3P[S3 protected]
+    CL --> GOV[DynamoDB governance records]
+    EB -. Failure .-> DLQ[SQS DLQ]
+  end

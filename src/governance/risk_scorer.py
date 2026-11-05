@@ -1,37 +1,37 @@
-from typing import Dict, Any
-
 class RiskScoringEngine:
     def __init__(self):
         self.sensitivity_weights = {
-            'RESTRICTED': 10,
-            'CONFIDENTIAL': 5,
-            'INTERNAL': 2,
-            'PUBLIC': 1,
-            'UNKNOWN': 0
+            "RESTRICTED": 80,
+            "CONFIDENTIAL": 40,
+            "INTERNAL": 15,
+            "PUBLIC": 1,
+            "UNKNOWN": 0,
         }
-        
-    def calculate_risk_score(self, sensitivity: str, exposure_level: int, access_breadth: int) -> int:
+
+    def calculate_risk_score(
+        self, sensitivity: str, exposure_level: int, access_breadth: int
+    ) -> int:
         """
         Calculates the risk score based on the formula:
-        Risk Score = (Data Sensitivity Weight) × (Exposure Level) × (Access Breadth)
-        
-        exposure_level: e.g., 1=Private, 5=Internal Shared, 10=Public
-        access_breadth: Number of distinct IAM roles/users with access.
+        Risk Score = (Data Sensitivity Weight) x (Exposure Level) x (Access Breadth)
+
+        Sensitivity establishes the base severity. Exposure and access breadth
+        are multipliers beginning at one, and the result is capped at 100.
         """
         weight = self.sensitivity_weights.get(sensitivity.upper(), 0)
-        return weight * exposure_level * access_breadth
-        
+        return min(100, weight * max(1, exposure_level) * max(1, access_breadth))
+
     def categorize_risk(self, risk_score: int) -> str:
         """
         Categorizes finding into severity levels based on score thresholds.
         """
         if risk_score >= 80:
-            return 'CRITICAL'
+            return "CRITICAL"
         elif risk_score >= 40:
-            return 'HIGH'
+            return "HIGH"
         elif risk_score >= 15:
-            return 'MEDIUM'
+            return "MEDIUM"
         elif risk_score > 0:
-            return 'LOW'
+            return "LOW"
         else:
-            return 'INFO'
+            return "INFO"

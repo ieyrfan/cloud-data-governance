@@ -1,0 +1,92 @@
+[
+  {
+    "id": "report-prose-business-terms",
+    "text": "Jordan reviewed the Apple finance report for the May 2026 meeting. Ward 12 was closed for maintenance.",
+    "must_redact": [],
+    "must_keep": ["name", "my_phone", "address", "date_of_birth", "financial_account"]
+  },
+  {
+    "id": "report-reference-numbers",
+    "text": "Reference 12345 was linked to Room 12 on page 7. The report date was 14/02/2026.",
+    "must_redact": [],
+    "must_keep": ["my_ic", "my_phone", "date_of_birth", "financial_account"]
+  },
+  {
+    "id": "labelled-contact-fields",
+    "text": "Name: Synthetic Person\nPhone: 012-3456789\nEmail: person@example.test",
+    "must_redact": ["name", "my_phone", "email"],
+    "must_keep": []
+  },
+  {
+    "id": "labelled-identity-fields",
+    "text": "NRIC: 900101-14-5555\nDate of Birth: 01/01/1990\nPatient ID: PT-2026-0012",
+    "must_redact": ["my_ic", "date_of_birth", "government_id"],
+    "must_keep": []
+  },
+  {
+    "id": "organisation-and-project-names",
+    "text": "The Jordan Project was delivered by Apple Malaysia and reviewed by the Finance Department.",
+    "must_redact": [],
+    "must_keep": ["name", "financial_account"]
+  },
+  {
+    "id": "technical-network-example",
+    "text": "The test server 192.168.1.10 reported coordinates 3.1390, 101.6869 during the demonstration.",
+    "must_redact": [],
+    "must_keep": ["ip_address", "gps_coordinates"]
+  },
+  {
+    "id": "labelled-network-fields",
+    "text": "User IP: 8.8.8.8\nGPS coordinates: 3.1390, 101.6869",
+    "must_redact": ["ip_address", "gps_coordinates"],
+    "must_keep": []
+  },
+  {
+    "id": "sample-values",
+    "text": "Example phone: 012-3456789\nSample NRIC: 900101-14-5555\nPlaceholder email: example@example.com",
+    "must_redact": ["my_ic", "my_phone", "email"],
+    "must_keep": []
+  },
+  {
+    "id": "ordinary-month-and-date",
+    "text": "May was selected as the delivery month. Created at 2026-05-14. Report date: 14/05/2026.",
+    "must_redact": [],
+    "must_keep": ["date_of_birth"]
+  },
+  {
+    "id": "labelled-financial-data",
+    "text": "Bank Account Number: 123456789012\nCredit Card: 4111 1111 1111 1111",
+    "must_redact": ["financial_account", "credit_card"],
+    "must_keep": []
+  },
+  {
+    "id": "general-address-prose",
+    "text": "The workshop was held on Jalan Damai near the campus. Participants met at Ward 12.",
+    "must_redact": [],
+    "must_keep": ["address"]
+  },
+  {
+    "id": "labelled-address",
+    "text": "Address: No. 12, Jalan Damai, 43000 Kajang, Selangor",
+    "must_redact": ["address"],
+    "must_keep": []
+  },
+  {
+    "id": "credentials",
+    "text": "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.synthetic.payload\nPrivate key: -----BEGIN PRIVATE KEY-----\nSYNTHETIC\n-----END PRIVATE KEY-----",
+    "must_redact": ["secret", "private_key"],
+    "must_keep": []
+  },
+  {
+    "id": "clean-academic-paragraph",
+    "text": "This paper evaluates cloud governance controls, OCR accuracy, and document processing latency.",
+    "must_redact": [],
+    "must_keep": ["name", "my_phone", "email", "address", "date_of_birth"]
+  },
+  {
+    "id": "malay-labelled-fields",
+    "text": "Nama: Synthetic Person\nNombor Telefon: 012-3456789\nAlamat: No. 12, Jalan Damai",
+    "must_redact": ["name", "my_phone", "address"],
+    "must_keep": []
+  }
+]
