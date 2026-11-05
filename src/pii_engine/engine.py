@@ -357,7 +357,7 @@ class PIIEngine:
                     address = ipaddress.ip_address(match.group())
                 except ValueError:
                     continue
-                context = _nearby_label(source, match.start(), "USER_IDENTIFIER", 100)
+                context = _nearby_label(source, match.start(), "IP_ADDRESS", 100)
                 if not context and (address.is_private or address.is_loopback or address.is_link_local):
                     continue
                 start, end = span_mapper(match.start(), match.end())
@@ -368,7 +368,7 @@ class PIIEngine:
             if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
                 continue
             start, end = span_mapper(match.start(), match.end())
-            context = _nearby_label(source, start, "POSTAL_ADDRESS", 100)
+            context = _nearby_label(source, start, "GPS_COORDINATES", 100)
             findings.append(self._finding(source, "GPS_COORDINATES", source[start:end], start, end, confidence=0.75 if not context else 0.92, methods=("pattern", "coordinate_validation") + (("context",) if context else ()), validation="VALID", rule_id="DS-LOCATION-GPS", context=context))
 
         for match in BEARER.finditer(text):
@@ -603,3 +603,4 @@ class PIIEngine:
             1 for neighbours in PIIEngine._neighbour_categories(findings) if len(neighbours) >= 3
         )
         return ScanSummary(len(findings), len({(item.entity_type, item.normalized_value) for item in findings}), risk, risk_score, covered / max(1, len(source)), dict(severity), dict(categories), clusters)
+

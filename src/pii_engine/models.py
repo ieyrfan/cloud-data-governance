@@ -141,6 +141,8 @@ class DetectionResult:
             "PATIENT_ID": "government_id",
             "CUSTOMER_ID": "government_id",
             "FINANCIAL_ACCOUNT": "financial_account",
+            "IP_ADDRESS": "ip_address",
+            "GPS_COORDINATES": "gps_coordinates",
             "DATE_OF_BIRTH": "date_of_birth",
         }
         for finding in self.findings:
@@ -160,3 +162,4 @@ class DetectionResult:
             "summary": self.summary.public_dict(),
             "values_disclosed": False,
         }
+

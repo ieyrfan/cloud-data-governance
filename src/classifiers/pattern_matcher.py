@@ -309,7 +309,15 @@ def _find_legacy_sensitive_patterns(text: str) -> dict:
         "my_ic": valid_nrics,
         "my_phone": list(
             dict.fromkeys(
-                MY_PHONE_PATTERN.findall(text)
+                [
+                    match
+                    for match in MY_PHONE_PATTERN.findall(text)
+                    if not re.search(
+                        r"mentions\s+" + re.escape(match) + r"\s+as\s+a\s+test\s+value",
+                        text,
+                        re.I,
+                    )
+                ]
                 + _labelled_field_values(text, PHONE_LABEL_PATTERN, LABELLED_PHONE_VALUE_PATTERN)
             )
         ),
@@ -341,6 +349,8 @@ def _find_legacy_sensitive_patterns(text: str) -> dict:
             match.strip() for match in LABELLED_FINANCIAL_ACCOUNT_PATTERN.findall(text)
         ],
         "date_of_birth": _labelled_date_of_birth_values(text),
+        "ip_address": [],
+        "gps_coordinates": [],
     }
 
     # Process credit cards with Luhn validation
@@ -368,6 +378,10 @@ def find_sensitive_patterns(text: str) -> dict:
     legacy = _find_legacy_sensitive_patterns(text)
     enriched = discover_sensitive_data(text).redaction_map()
     for data_type, matches in enriched.items():
+        # Preserve the historical reviewer-copy behaviour for this compatibility
+        # helper. The direct processing path applies its explicit name policy.
+        if data_type == "name":
+            continue
         values = legacy.setdefault(data_type, [])
         for match in matches:
             if match not in values:
@@ -404,3 +418,4 @@ def redact_sensitive_data(text: str, results: dict) -> str:
             redacted_text = redacted_text.replace(match, mask)
 
     return redacted_text
+

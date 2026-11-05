@@ -39,6 +39,8 @@ CONTEXT_LABELS = {
     "PATIENT_ID": ("patient id", "patient number", "medical record", "mrn"),
     "CUSTOMER_ID": ("customer id", "customer number", "member id", "policy number"),
     "USER_IDENTIFIER": ("user id", "userid", "username", "account handle", "login"),
+    "IP_ADDRESS": ("ip", "ip address", "ipv4", "ipv6"),
+    "GPS_COORDINATES": ("gps", "gps coordinates", "latitude", "longitude"),
 }
 
 NEGATIVE_DATE_CONTEXT = (
@@ -101,3 +103,4 @@ CATEGORY = {
     "PRIVATE_KEY": "SECRET",
     "AWS_ACCESS_KEY": "CREDENTIAL",
 }
+

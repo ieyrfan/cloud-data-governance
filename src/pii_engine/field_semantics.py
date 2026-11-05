@@ -111,7 +111,7 @@ ENTITY_CONCEPTS: dict[str, tuple[set[str], set[str] | None]] = {
         None,
     ),
     "USER_IDENTIFIER": (
-        {"user", "username", "login", "account", "device", "session", "cookie"},
+        {"user", "username", "login", "device", "session", "cookie"},
         IDENTIFIER_WORDS | {"name", "handle", "uuid"},
     ),
 }
@@ -182,3 +182,4 @@ def classify_field(label: str) -> FieldSemantic | None:
 
 
 __all__ = ["FieldSemantic", "classify_field", "normalize_field_name"]
+
